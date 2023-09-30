@@ -78,6 +78,22 @@ trap(struct trapframe *tf)
     lapiceoi();
     break;
 
+  case T_PGFLT:
+    // Handle page fault in user software only
+    if(myproc() && (tf->cs&3) == DPL_USER){
+      uint faddr = rcr2();
+
+      // Faulting addr is in address space. alloc new page
+      if( faddr < myproc()->sz ){
+        faddr = PGROUNDDOWN(faddr);
+
+        allocuvm(myproc()->pgdir, faddr, faddr + PGSIZE);
+      }
+      
+      break;
+    }
+  // Intentional fallthrough
+
   //PAGEBREAK: 13
   default:
     if(myproc() == 0 || (tf->cs&3) == 0){
