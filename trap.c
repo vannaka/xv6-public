@@ -48,6 +48,8 @@ trap(struct trapframe *tf)
 
   switch(tf->trapno){
   case T_IRQ0 + IRQ_TIMER:
+    struct proc *p = myproc();
+
     if(cpuid() == 0){
       acquire(&tickslock);
       ticks++;
@@ -55,6 +57,38 @@ trap(struct trapframe *tf)
       release(&tickslock);
     }
     lapiceoi();
+
+    // If tick occured while in user space
+    if(myproc() != 0 && (tf->cs & 3) == DPL_USER)
+    {
+      // update alarm ticks
+      // NOTE: This attibutes all of the last tick to this proc.
+      //  If a proc always runs for less than a tick it will never
+      //  have its alarm handler called.
+      p->alarm_ticks++;
+
+      // Evaluate alarm period
+      if( ( p->alarm_period != 0              )
+       && ( p->alarm_ticks >= p->alarm_period ) )
+      {
+        p->alarm_ticks = 0;
+
+        // call alarm handler
+        // To achieve this, manipulate trapframe such that we'll
+        // return to p->alarm_handler() and the alarm handler
+        // will return to to the orig tf->eip.
+
+        // Push return address. 
+        // alrm_handler()'s ret instruction will return here
+        tf->esp -= 4;
+        *((uint*)tf->esp) = tf->eip;
+
+        // Execute alarm_handler on iret
+        tf->eip = (uint)p->alarm_handler;
+      }
+    }
+    
+
     break;
   case T_IRQ0 + IRQ_IDE:
     ideintr();

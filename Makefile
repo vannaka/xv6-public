@@ -167,8 +167,9 @@ mkfs: mkfs.c fs.h
 .PRECIOUS: %.o
 
 UPROGS=\
-	_date\
+	_alarmtest\
 	_cat\
+	_date\
 	_echo\
 	_forktest\
 	_grep\

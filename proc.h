@@ -32,6 +32,8 @@ struct context {
   uint eip;
 };
 
+typedef void (*alarm_handler_t)(void);
+
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 // Per-process state
@@ -49,6 +51,9 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+  alarm_handler_t alarm_handler;     // Handler for alarm() syscall
+  int alarm_period;            // period to call alarm() handler
+  int alarm_ticks;             // ticks since last alarm
 };
 
 // Process memory is laid out contiguously, low addresses first:

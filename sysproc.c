@@ -88,3 +88,28 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+int
+sys_alarm(void)
+{
+  int period;
+  void(*callback)(void) ;
+  struct proc * p = myproc();
+  
+  // Retrieve arguments
+  if( argint(0, &period) < 0 )
+    return -1;
+
+  if( argptr(1, (char**)&callback, sizeof(callback)) < 0 )
+    return -1;
+
+  // Period must be non-zero
+  if( 0 == period )
+    return -1;
+
+  p->alarm_period = period;
+  p->alarm_handler = callback;
+  p->alarm_ticks = 0;
+
+  return 0;
+}
