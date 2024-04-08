@@ -30,3 +30,34 @@ trapret:
   popl %ds
   addl $0x8, %esp  # trapno and errcode
   iret
+
+// .global alarm_enter
+
+
+# alarm_exit()
+.globl alarm_exit
+alarm_exit:
+  pushl %eax
+  pushl %ebx
+
+  // Remove alarm_exit() from stack.
+  movl $(alarm_exit_end - alarm_exit), %eax // eax = sz
+  addl %eax, %esp
+
+  // Remove alignment NOPs from stack
+  andl $3, %eax
+  movl $4, %ebx
+  sub %ebx, %eax // ebx = 4 - (sz & 3)
+  addl %ebx, %esp
+
+  // Remove Caller-saved registers
+  // popl %edi
+  // popl %esi
+  // popl %ebx
+  // popl %ebp
+
+  popl %ebx
+  popl %eax
+  ret
+.globl alarm_exit_end
+alarm_exit_end:

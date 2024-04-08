@@ -10,8 +10,8 @@ main(int argc, char *argv[])
   int i;
   printf(1, "alarmtest starting\n");
   alarm(10, periodic);
-  for(i = 0; i < 25*500000*50; i++){
-    if((i % 250000*2000) == 0)
+  for(i = 0; i < 25*500000*9; i++){
+    if((i % 1000000) == 0)
       write(2, ".", 1);
   }
   exit();

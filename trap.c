@@ -14,6 +14,10 @@ extern uint vectors[];  // in vectors.S: array of 256 entry pointers
 struct spinlock tickslock;
 uint ticks;
 
+// alarm_exit() start and end addrs. See trapasm.S
+extern uint alarm_exit;
+extern uint alarm_exit_end;
+
 void
 tvinit(void)
 {
@@ -59,8 +63,14 @@ trap(struct trapframe *tf)
     lapiceoi();
 
     // If tick occured while in user space
-    if(myproc() != 0 && (tf->cs & 3) == DPL_USER)
+    if(p != 0 && (tf->cs & 3) == DPL_USER)
     {
+      #define push_u(x)           \
+        ({                        \
+          uint v = x;             \
+          tf->esp -= 4;           \
+        *((uint*)tf->esp) = (v); })
+    
       // update alarm ticks
       // NOTE: This attibutes all of the last tick to this proc.
       //  If a proc always runs for less than a tick it will never
@@ -73,21 +83,36 @@ trap(struct trapframe *tf)
       {
         p->alarm_ticks = 0;
 
-        // call alarm handler
-        // To achieve this, manipulate trapframe such that we'll
-        // return to p->alarm_handler() and the alarm handler
-        // will return to to the orig tf->eip.
+        // Push return address for interrupted user context.
+        // alarm_exit()'s ret will return to this address.
+        push_u(tf->eip);
 
-        // Push return address. 
-        // alrm_handler()'s ret instruction will return here
-        tf->esp -= 4;
-        *((uint*)tf->esp) = tf->eip;
+        // Save caller-saved regs
+        // TODO
+
+        // Place alarm_exit() function onto the stack        
+        uint sz = (uint)&alarm_exit_end - (uint)&alarm_exit;
+        tf->esp -= sz;
+
+        memmove( (uchar*)tf->esp, &alarm_exit, sz );
+        
+        // Stuff stack with NOP's to keep 4byte alignment
+        for( uint i = 0; i < 4 - (sz & 3 ); i++ )
+        {
+          tf->esp -= 1;
+          *((uchar*)tf->esp) = 0x90; // NOP
+        }
+
+        // cprintf("\n\nPlacing alarm_exit() at: [0x%x - 0x%x] ", tf->esp, tf->esp+sz);
+
+        // Push address for alarm_exit().
+        // p->alarm_handler()'s ret will return to this address.
+        push_u(tf->esp);
 
         // Execute alarm_handler on iret
         tf->eip = (uint)p->alarm_handler;
       }
     }
-    
 
     break;
   case T_IRQ0 + IRQ_IDE:
